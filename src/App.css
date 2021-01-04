@@ -1,38 +1,87 @@
+#root {
+  height: 100vh;
+}
+
 .App {
+  position: relative;
   text-align: center;
+  padding: 0 2em;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.login .header {
+  margin-bottom: 20px;
+  font-size: 2em;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.login .enter-btn:hover {
+  cursor: pointer;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.score-board .header {
+  margin-bottom: 20px;
+  font-size: 1.75em;
+}
+.score-board .header .header {
+  margin-top: 5px;
 }
 
-.App-link {
-  color: #61dafb;
+.score-board .user-score {
+  color: darkgreen;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.poetry-container {
+  height: 100vh;
+  width: 100%;
+}
+
+.poetry-inner {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 100%;
+  padding: 1em 0;
+}
+
+.poetry-card {
+  margin: 0.5em;
+  height: calc(50% - 1.5em);
+  border-radius: 0.5em;
+  border: lightgray dashed 0.1em;
+}
+
+.poetry-card.selected {
+  border: slateblue solid 0.1em;
+}
+
+.poetry-card .title {
+  font-size: 1.5em;
+  margin-bottom: 0.25em;
+}
+.poetry-card .author {
+  font-size: 1.15em;
+  margin: 0 0 0.5em 0;
+}
+.poetry-card .line {
+  font-size: 1.1em;
+}
+
+.turing-test .submit-btn {
+  position: absolute;
+  right: 1em;
+  bottom: 1em;
+  transform: translateY(-100%);
+  z-index: 1000;
+}
+
+.poetry-card-inner {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.mode-choice {
+  margin-top: 1em;
 }
