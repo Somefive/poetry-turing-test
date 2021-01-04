@@ -1,13 +1,13 @@
 import './App.css';
 import 'antd/dist/antd.css'
-import { Input, message, Button, Radio } from 'antd'
+import { Input, message, Button } from 'antd'
 import { UserOutlined, ArrowRightOutlined, RobotOutlined } from '@ant-design/icons'
 import { Component } from 'react'
 import _ from 'lodash'
 import poetries from './poetries.json'
 
 // import Swiper core and required components
-import SwiperCore, { Navigation, Pagination, Scrollbar, A11y } from 'swiper'
+import SwiperCore, { Navigation, Pagination, Scrollbar, A11y, Autoplay } from 'swiper'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
 // Import Swiper styles
@@ -17,7 +17,7 @@ import 'swiper/components/pagination/pagination.scss'
 import 'swiper/components/scrollbar/scrollbar.scss'
 
 // install Swiper components
-SwiperCore.use([Navigation, Pagination, Scrollbar, A11y]);
+SwiperCore.use([Navigation, Pagination, Scrollbar, A11y, Autoplay]);
 
 export default class App extends Component {
     constructor(props) {
@@ -29,13 +29,24 @@ export default class App extends Component {
           testSize: 5,
           testOffset: 0,
           turingTests: [],
-          mode: 'easy'
+          mode: 'easy',
+          countDown: 0
       }
       this.poetries = _.shuffle(poetries)
+      this.timer = undefined
+      this.swiper = undefined
     }
 
     renderLogin() {
-      // renderModeButton = (mode, color) => <Button onClick={() => this.setState({mode})}></Button>
+      const renderModeButton = (mode, color) => {
+        return <Button onClick={() => this.setState({mode})} style={{
+          color: mode === this.state.mode ? 'white' : 'black',
+          background: mode === this.state.mode ? color : 'white',
+          borderColor: color,
+          borderRadius: 0,
+          margin: '0.25em 0.75em'
+        }}>{_.capitalize(mode)}</Button>
+      }
       return (
         <div className="login">
           <div className="header">作诗图灵测试</div>
@@ -50,11 +61,16 @@ export default class App extends Component {
             onChange={e => this.setState({username: e.target.value})}
             onPressEnter={() => this.login()}
           />
-          {/* <div className="mode-choice">
-              <Button onClick>Easy</Button>
-              <Button>Hard</Button>
-              <Button>Lunatic</Button>
-          </div> */}
+          <div className="mode-choice">
+              {renderModeButton('easy', '#7cb305')}
+              {renderModeButton('hard', '#cf1322')}
+              {renderModeButton('lunatic', '#531dab')}
+          </div>
+          <div className="description">
+            {this.state.mode === 'easy' && '在作诗图灵测试的Easy模式中，您将会被展现5组诗歌（包括标题、作者及内容），每组包括1首由诗人创作的诗歌和1首AI创作的诗歌，请选择您认为由人创作的诗歌。所有组选择完成后，您将会得知有多少组结果正确。'}
+            {this.state.mode === 'hard' && '在作诗图灵测试的Hard模式中，您将会被展现10组诗歌（包括标题及内容），每组包括1首由诗人创作的诗歌和2首AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答限时1分钟。所有组选择完成后，您将会得知有多少组结果正确。结果将被计入Hard模式排行榜。'}
+            {this.state.mode === 'lunatic' && '在作诗图灵测试的Lunatic模式中，您将会被展现20组诗歌（仅包括诗歌内容），每组包括3首诗歌，其中至多包含1首由人创作的诗歌，请选择您认为由人创作的诗歌（若没有，则不选择），每组回答限时30秒。所有组选择完成后，您将会得知有多少组结果正确。结果将被计入Lunatic模式排行榜。'}
+          </div>
         </div>
       )
     }
@@ -122,7 +138,7 @@ export default class App extends Component {
 
     renderPoetryTest(poetryTest) {
       return (
-        <SwiperSlide>
+        <SwiperSlide key={poetryTest.index}>
           <div className="poetry-container">
             <div className="poetry-inner">
               {this.renderPoetry(poetryTest.first, poetryTest)}
@@ -134,12 +150,37 @@ export default class App extends Component {
     }
 
     submit() {
-      const score = _.countBy(this.state.turingTests, t => t.answer_id === t.human_id).true
+      const score = _.countBy(this.state.turingTests, t => t.answer_id === t.human_id).true || 0
       this.setState({score, model: 'score-board'})
     }
 
+    onSlideChange(reset) {
+      if (this.timer) {
+        clearTimeout(this.timer)
+        this.timer = undefined
+      }
+      if (this.state.mode !== 'easy') {
+        if (reset) {
+          this.setState({countDown: this.state.mode === 'hard' ? 60 : 30})
+        }
+        this.timer = setTimeout(() => {
+          if (this.state.countDown === 1) {
+            if (this.swiper) {
+              if (this.swiper.realIndex === this.swiper.slides.length - 1) {
+                this.submit()
+              } else {
+                this.swiper.slideNext()
+              }
+            }
+          } else {
+            this.setState({countDown: this.state.countDown - 1})
+            this.onSlideChange(false)
+          }
+        }, 1000)
+      }
+    }
+
     renderPoetryTuringTest() {
-      const submittable = _.find(this.state.turingTests, t => t.answer_id < 0) === undefined
       return (
         <div className="turing-test">
           <Swiper
@@ -148,25 +189,38 @@ export default class App extends Component {
             // navigation
             pagination={{ clickable: true }}
             scrollbar={{ draggable: true }}
-            onSlideChange={() => console.log('slide change')}
-            onSwiper={(swiper) => console.log(swiper)}
+            onSlideChange={() => this.onSlideChange(true)}
+            onSwiper={(swiper) => {
+              this.swiper = swiper
+              this.onSlideChange(true)
+            }}
+            allowSlidePrev={this.state.mode === 'easy'}
           >
             {this.state.turingTests.map(poetryTest => this.renderPoetryTest(poetryTest))}
           </Swiper>
           <div className="submit-btn">
-            <Button type="primary" shape="circle" icon={<RobotOutlined />} disabled={!submittable} onClick={() => this.submit()}/>
+            <Button type="primary" shape="circle" icon={<RobotOutlined />} onClick={() => this.submit()}/>
           </div>
+        </div>
+      )
+    }
+
+    renderTimer() {
+      return (
+        <div className="timer">
+          <Button style={{borderColor: this.state.countDown <= 10 ? 'red' : 'darkgray'}} type="default" shape="circle">{(this.state.countDown >= 10 ? "" : " ") + `${this.state.countDown}`}</Button>
         </div>
       )
     }
 
     render() {
         return (
-            <div className="App">
-              {this.state.model === 'login' && this.renderLogin()}
-              {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
-              {this.state.model === 'score-board' && this.renderScoreBoard()}
-            </div>
+          <div className="App">
+            {this.state.model === 'login' && this.renderLogin()}
+            {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
+            {this.state.model === 'score-board' && this.renderScoreBoard()}
+            {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
+          </div>
         )
     }
 }
