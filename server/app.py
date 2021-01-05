@@ -6,6 +6,8 @@ import time
 import logging
 import random
 from threading import Lock
+import numpy as np
+import math
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 CORS(app)
@@ -30,6 +32,20 @@ def load_poetry_tests():
   return poetry_tests
 
 score_board = json.load(open('score_board.json'))
+for key in ['easy', 'hard', 'lunatic']:
+  if key not in score_board:
+    score_board[key] = {}
+  tester_id = 0
+  size = get_size(key)
+  loc = 3 if key == 'easy' else (5 if key == 'hard' else 8)
+  scale = 1 if key == 'easy' else (2 if key == 'hard' else 3)
+  while len(score_board[key]) < 50:
+    tester_name = 'Tester-%d' % tester_id
+    if tester_name not in score_board[key]:
+      score_board[key][tester_name] = max(min(math.floor(np.random.normal(loc=loc, scale=scale)), size), 0)
+    tester_id += 1
+json.dump(score_board, open('score_board.json', 'w'), ensure_ascii=False)
+
 score_board_lock = Lock()
 def get_score_board(username, score, mode):
   with score_board_lock:
