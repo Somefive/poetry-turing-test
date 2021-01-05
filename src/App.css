@@ -3,6 +3,11 @@
 }
 
 .App {
+  height: 100vh;
+  width: 100vw;
+}
+
+.App-inner {
   position: relative;
   text-align: center;
   padding: 0 2em;
@@ -54,10 +59,12 @@
   height: calc(50% - 1.5em);
   border-radius: 0.5em;
   border: lightgray dashed 0.1em;
+  background: #ffffffA0;
 }
 
 .poetry-card.selected {
   border: slateblue solid 0.2em;
+  background: #ffffffe0;
 }
 
 .poetry-card .title {

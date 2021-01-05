@@ -79,31 +79,50 @@ export default class App extends Component {
       if (this.state.username.length === 0) message.warning('输入的名称不能为空')
       else {
         let tests = []
-        for (let i = 0; i < this.state.testSize; ++i) {
-          let poetry = this.poetries[(i + this.state.testOffset) % this.poetries.length]
-          let ai_lines = _.shuffle(poetry['ai-lines'])[0]
-          let is_first = _.random(0, 1) < 0.5
+        const testSize = this.state.mode === 'easy' ? 5 : (this.state.mode === 'hard' ? 10 : 20)
+        let testOffset = this.state.testOffset
+        for (let i = 0; i < testSize; ++i) {
+          let poetry = this.poetries[(i + testOffset) % this.poetries.length]
+          let flag = true
+          if (this.state.mode === 'easy') flag = poetry['ai-lines'].length > 0
+          else flag = poetry['ai-lines'].length > 1
+          if (!flag) {
+            --i
+            ++testOffset
+            continue
+          }
+          let ai_lines = _.shuffle(poetry['ai-lines'])
+          let cases_lines = []
+          const caseSize = this.state.mode === 'easy' ? 2 : 3
+
+          let human_id = -1
+          if (this.state.mode === 'lunatic' && ai_lines.length >= 3 && _.random(0, 1) < 0.25) human_id = -1
+          else human_id = Math.min(Math.floor(_.random(0, 1) * caseSize), caseSize - 1)
+          for (let i = 0; i < caseSize; ++i) {
+            if (i < human_id || human_id === -1) cases_lines.push(ai_lines[i])
+            else if (i === human_id) cases_lines.push(poetry.lines)
+            else cases_lines.push(ai_lines[i-1])
+          }
+          let cases = []
+          for (let id = 0; id < caseSize; ++id) {
+            let obj = {id, lines: cases_lines[id], title: undefined, author: undefined, dynastic: undefined}
+            if (this.state.mode !== 'lunatic') obj.title = poetry.title
+            if (this.state.mode === 'easy') {
+              obj.author = poetry.author
+              obj.dynasty = poetry.dynasty
+            }
+            if (obj.lines === undefined) console.log(obj, id, cases_lines, poetry, human_id, caseSize, flag, ai_lines)
+            cases.push(obj)
+          }
+
           tests.push({
             index: i,
-            first: {
-              id: 0,
-              title: poetry.title,
-              author: poetry.author,
-              dynasty: poetry.dynasty,
-              lines: is_first ? poetry.lines : ai_lines,
-            },
-            second: {
-              id: 1,
-              title: poetry.title,
-              author: poetry.author,
-              dynasty: poetry.dynasty,
-              lines: is_first ? ai_lines : poetry.lines,
-            },
-            human_id: is_first ? 0 : 1,
+            cases,
+            human_id,
             answer_id: -1,
           })
         }
-        this.setState({model: 'poetry-turing-test', turingTests: tests})
+        this.setState({model: 'poetry-turing-test', turingTests: tests, testSize, testOffset})
       }
     }
 
@@ -120,17 +139,20 @@ export default class App extends Component {
     }
 
     renderPoetry(poetry, parent) {
+      const heightpercent = Math.floor(100 / parent.cases.length)
       return (
         <div className={`poetry-card ${poetry.id === parent.answer_id ? 'selected': ''}`} onClick={() => {
           const tests = this.state.turingTests
           if (tests[parent.index].answer_id === poetry.id) tests[parent.index].answer_id = -1
           else tests[parent.index].answer_id = poetry.id
           this.setState({turingTests: tests})
+        }} style={{
+          height: `calc(${heightpercent}% - 1em)`
         }}>
           <div className="poetry-card-inner">
-            <div className="title">{poetry.title}</div>
-            <div className="author">{poetry.dynasty && poetry.dynasty + ' '}{poetry.author}</div>
-            {poetry.lines.map((line, idx) => <div className="line" idx={idx}>{line}</div>)}
+            {poetry.title && <div className="title">{poetry.title}</div>}
+            {poetry.author && poetry.dynasty && <div className="author">{poetry.dynasty && poetry.dynasty + ' '}{poetry.author}</div>}
+            {poetry.lines && poetry.lines.map((line, idx) => <div className="line" idx={idx}>{line}</div>)}
           </div>
         </div>
       )
@@ -141,8 +163,7 @@ export default class App extends Component {
         <SwiperSlide key={poetryTest.index}>
           <div className="poetry-container">
             <div className="poetry-inner">
-              {this.renderPoetry(poetryTest.first, poetryTest)}
-              {this.renderPoetry(poetryTest.second, poetryTest)}
+              {poetryTest && poetryTest.cases && poetryTest.cases.map(_case => this.renderPoetry(_case, poetryTest))}
             </div>
           </div>
         </SwiperSlide>
@@ -215,11 +236,13 @@ export default class App extends Component {
 
     render() {
         return (
-          <div className="App">
-            {this.state.model === 'login' && this.renderLogin()}
-            {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
-            {this.state.model === 'score-board' && this.renderScoreBoard()}
-            {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
+          <div className="App" style={{backgroundImage: `url(${process.env.PUBLIC_URL}/background.png)`}}>
+            <div className="App-inner">
+              {this.state.model === 'login' && this.renderLogin()}
+              {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
+              {this.state.model === 'score-board' && this.renderScoreBoard()}
+              {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
+            </div>
           </div>
         )
     }
