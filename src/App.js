@@ -20,7 +20,7 @@ import 'swiper/components/scrollbar/scrollbar.scss'
 // install Swiper components
 SwiperCore.use([Navigation, Pagination, Scrollbar, A11y, Autoplay]);
 
-const API_HREF = 'http://localhost:5000'
+const API_HREF = 'http://120.92.50.21:19544'
 
 export default class App extends Component {
     constructor(props) {
@@ -33,7 +33,8 @@ export default class App extends Component {
           mode: 'easy',
           countDown: 0,
           rank: 0,
-          rankTotal: 0
+          rankTotal: 0,
+          guiding: 'firsttime'
       }
       this.poetries = _.shuffle(poetries)
       this.timer = undefined
@@ -116,7 +117,9 @@ export default class App extends Component {
           const tests = this.state.turingTests
           if (tests[parent.index].answer_id === poetry.id) tests[parent.index].answer_id = ''
           else tests[parent.index].answer_id = poetry.id
-          this.setState({turingTests: tests})
+          let newState = {turingTests: tests}
+          if (this.state.guiding === 'choosing') newState.guiding = 'goto-next'
+          this.setState(newState)
         }} style={{
           height: `calc(${heightpercent}% - 1em)`
         }}>
@@ -142,6 +145,7 @@ export default class App extends Component {
     }
 
     submit() {
+      if (this.state.guiding !== '' && this.state.guiding !== 'submitting') return
       axios.post(`${API_HREF}/get-score`, {
         'username': this.state.username,
         'mode': this.state.mode,
@@ -153,7 +157,9 @@ export default class App extends Component {
         const score = data.data.score
         const rank = data.data.rank
         const rankTotal = data.data.total
-        this.setState({score, rank, rankTotal, model: 'score-board'})
+        let newState = {score, rank, rankTotal, model: 'score-board'}
+        if (this.state.guiding === 'submitting') newState.guiding = 'finish'
+        this.setState(newState)
       })
     }
 
@@ -180,10 +186,14 @@ export default class App extends Component {
             this.onSlideChange(false)
           }
         }, 1000)
+      } else if (this.state.guiding === 'swiping') {
+        this.setState({guiding: 'click-submit'})
       }
     }
 
     renderPoetryTuringTest() {
+      if (this.state.guiding === 'swiping' && this.swiper) this.swiper.allowSlideNext = true
+
       return (
         <div className="turing-test">
           <Swiper
@@ -198,6 +208,7 @@ export default class App extends Component {
               this.onSlideChange(true)
             }}
             allowSlidePrev={this.state.mode === 'easy'}
+            allowSlideNext={this.state.mode !== 'easy' || this.state.guiding === '' || this.state.guiding === 'swiping'}
           >
             {this.state.turingTests.map(poetryTest => this.renderPoetryTest(poetryTest))}
           </Swiper>
@@ -216,16 +227,48 @@ export default class App extends Component {
       )
     }
 
-    render() {
-        return (
-          <div className="App" style={{backgroundImage: `url(${process.env.PUBLIC_URL}/background.png)`}}>
-            <div className="App-inner">
-              {this.state.model === 'login' && this.renderLogin()}
-              {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
-              {this.state.model === 'score-board' && this.renderScoreBoard()}
-              {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
+    renderGuide() {
+      return <div className="guide">
+        {this.state.mode === 'easy' && ['', 'choosing', 'swiping', 'submitting'].indexOf(this.state.guiding) < 0 && <div className="guide-mask">
+          <div className="guide-container">
+            <div className="welcome">
+              {this.state.guiding === 'firsttime' && 'Hi，欢迎参加作诗图灵测试。'}
+              {this.state.guiding === 'make-choice' && '点击您认为是真实的诗人所作的诗。'}
+              {this.state.guiding === 'choosing' && ''}
+              {this.state.guiding === 'goto-next' && '向左滑动进入下一首。'}
+              {this.state.guiding === 'swiping' && ''}
+              {this.state.guiding === 'click-submit' && '继续进行剩下的答题，然后点击右下角的提交按钮完成测试。'}
+              {this.state.guiding === 'submitting' && ''}
+              {this.state.guiding === 'finish' && '恭喜您完成测试教程！现在您可以选择任一难度开始挑战。'}
+            </div>
+            <div className="skip">
+              {this.state.guiding !== 'finish' && <Button className="btn next-btn" onClick={() => {
+                let guiding = 'make-choice'
+                if (this.state.guiding === 'make-choice') guiding = 'choosing'
+                if (this.state.guiding === 'goto-next') guiding = 'swiping'
+                if (this.state.guiding === 'click-submit') guiding = 'submitting'
+                this.setState({guiding})
+              }}>下一步</Button>}
+              <Button className="btn skip-btn" style={{color: 'white', background: '#00474f', borderColor: '#00474f'}} onClick={() => this.setState({guiding: ''})}>
+                {this.state.guiding === 'finish' ? '完成教程' : '跳过教程'}
+              </Button>
             </div>
           </div>
-        )
+        </div>}
+      </div>
+    }
+
+    render() {
+      return (
+        <div className="App" style={{background: `url(${process.env.PUBLIC_URL}/background.png)`, backgroundSize: 'cover'}}>
+          <div className="App-inner">
+            {this.state.model === 'login' && this.renderLogin()}
+            {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
+            {this.state.model === 'score-board' && this.renderScoreBoard()}
+            {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
+          </div>
+          {(this.state.model === 'poetry-turing-test' || this.state.model === 'score-board') && this.state.guiding !== '' && this.renderGuide()}
+        </div>
+      )
     }
 }
