@@ -192,7 +192,7 @@ export default class App extends Component {
     }
 
     renderPoetryTuringTest() {
-      if (this.state.guiding === 'swiping' && this.swiper) this.swiper.allowSlideNext = true
+      if ((this.state.guiding === 'swiping' || this.state.guiding === '') && this.swiper) this.swiper.allowSlideNext = true
 
       return (
         <div className="turing-test">
