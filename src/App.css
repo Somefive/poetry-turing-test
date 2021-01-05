@@ -98,11 +98,13 @@
 }
 
 .description {
+  background: #ffffffa0;
   position: absolute;
   top: calc(100% - 5em);
   left: 0;
-  margin-top: 0.5em;
-  padding: 0.5em 2.5em;
+  margin: 0.5em 1.5em;
+  border-radius: 0.5em;
+  padding: 0.5em 1em;
   font-size: 0.9em;
   text-align: left;
 }

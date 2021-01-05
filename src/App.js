@@ -5,6 +5,7 @@ import { UserOutlined, ArrowRightOutlined, RobotOutlined } from '@ant-design/ico
 import { Component } from 'react'
 import _ from 'lodash'
 import poetries from './poetries.json'
+import axios from 'axios'
 
 // import Swiper core and required components
 import SwiperCore, { Navigation, Pagination, Scrollbar, A11y, Autoplay } from 'swiper'
@@ -19,6 +20,8 @@ import 'swiper/components/scrollbar/scrollbar.scss'
 // install Swiper components
 SwiperCore.use([Navigation, Pagination, Scrollbar, A11y, Autoplay]);
 
+const API_HREF = 'http://localhost:5000'
+
 export default class App extends Component {
     constructor(props) {
       super(props)
@@ -26,11 +29,11 @@ export default class App extends Component {
           model: 'login',
           username: '',
           score: 0,
-          testSize: 5,
-          testOffset: 0,
           turingTests: [],
           mode: 'easy',
-          countDown: 0
+          countDown: 0,
+          rank: 0,
+          rankTotal: 0
       }
       this.poetries = _.shuffle(poetries)
       this.timer = undefined
@@ -78,51 +81,14 @@ export default class App extends Component {
     login() {
       if (this.state.username.length === 0) message.warning('输入的名称不能为空')
       else {
-        let tests = []
-        const testSize = this.state.mode === 'easy' ? 5 : (this.state.mode === 'hard' ? 10 : 20)
-        let testOffset = this.state.testOffset
-        for (let i = 0; i < testSize; ++i) {
-          let poetry = this.poetries[(i + testOffset) % this.poetries.length]
-          let flag = true
-          if (this.state.mode === 'easy') flag = poetry['ai-lines'].length > 0
-          else flag = poetry['ai-lines'].length > 1
-          if (!flag) {
-            --i
-            ++testOffset
-            continue
-          }
-          let ai_lines = _.shuffle(poetry['ai-lines'])
-          let cases_lines = []
-          const caseSize = this.state.mode === 'easy' ? 2 : 3
-
-          let human_id = -1
-          if (this.state.mode === 'lunatic' && ai_lines.length >= 3 && _.random(0, 1) < 0.25) human_id = -1
-          else human_id = Math.min(Math.floor(_.random(0, 1) * caseSize), caseSize - 1)
-          for (let i = 0; i < caseSize; ++i) {
-            if (i < human_id || human_id === -1) cases_lines.push(ai_lines[i])
-            else if (i === human_id) cases_lines.push(poetry.lines)
-            else cases_lines.push(ai_lines[i-1])
-          }
-          let cases = []
-          for (let id = 0; id < caseSize; ++id) {
-            let obj = {id, lines: cases_lines[id], title: undefined, author: undefined, dynastic: undefined}
-            if (this.state.mode !== 'lunatic') obj.title = poetry.title
-            if (this.state.mode === 'easy') {
-              obj.author = poetry.author
-              obj.dynasty = poetry.dynasty
-            }
-            if (obj.lines === undefined) console.log(obj, id, cases_lines, poetry, human_id, caseSize, flag, ai_lines)
-            cases.push(obj)
-          }
-
-          tests.push({
-            index: i,
-            cases,
-            human_id,
-            answer_id: -1,
-          })
-        }
-        this.setState({model: 'poetry-turing-test', turingTests: tests, testSize, testOffset})
+        axios.get(`${API_HREF}/get-turing-tests/${this.state.mode}`).then(data => {
+          const turingTests = data.data.tests.map((test, index) => { return {
+            ...test, answer_id: '', index
+          }})
+          this.setState({model: 'poetry-turing-test', turingTests})
+        }).catch(err => {
+          message.error(err)
+        })
       }
     }
 
@@ -131,28 +97,33 @@ export default class App extends Component {
         <div className="score-board">
           <div className="header">
             <div>{this.state.username}</div>
-            <div>您的得分是：<span className="user-score">{this.state.score}</span> / {this.state.testSize}</div>
+            <div>您的得分是：<span className="user-score">{this.state.score}</span> / {this.state.turingTests.length}</div>
+            <div>超越了<span className="user-rank">{(100 - this.state.rank * 100 / this.state.rankTotal).toFixed(2)}%</span>的人</div>
           </div>
-          <div className="retry-btn"><Button size="large" onClick={() => this.setState({model: 'login', testOffset: this.state.testOffset + this.state.testSize})}>再来一次</Button></div>
+          <div className="retry-btn"><Button size="large" onClick={() => this.setState({model: 'login'})}>再来一次</Button></div>
         </div>
       )
     }
 
     renderPoetry(poetry, parent) {
       const heightpercent = Math.floor(100 / parent.cases.length)
+      const title = parent.title
+      const author = parent.author
+      const dynasty = parent.dynasty
+      const content = poetry.content
       return (
         <div className={`poetry-card ${poetry.id === parent.answer_id ? 'selected': ''}`} onClick={() => {
           const tests = this.state.turingTests
-          if (tests[parent.index].answer_id === poetry.id) tests[parent.index].answer_id = -1
+          if (tests[parent.index].answer_id === poetry.id) tests[parent.index].answer_id = ''
           else tests[parent.index].answer_id = poetry.id
           this.setState({turingTests: tests})
         }} style={{
           height: `calc(${heightpercent}% - 1em)`
         }}>
           <div className="poetry-card-inner">
-            {poetry.title && <div className="title">{poetry.title}</div>}
-            {poetry.author && poetry.dynasty && <div className="author">{poetry.dynasty && poetry.dynasty + ' '}{poetry.author}</div>}
-            {poetry.lines && poetry.lines.map((line, idx) => <div className="line" idx={idx}>{line}</div>)}
+            {title && <div className="title">{title}</div>}
+            {author && dynasty && <div className="author">{dynasty && dynasty + ' '}{author}</div>}
+            {content && content.map((line, idx) => <div className="line" idx={idx}>{line}</div>)}
           </div>
         </div>
       )
@@ -171,8 +142,19 @@ export default class App extends Component {
     }
 
     submit() {
-      const score = _.countBy(this.state.turingTests, t => t.answer_id === t.human_id).true || 0
-      this.setState({score, model: 'score-board'})
+      axios.post(`${API_HREF}/get-score`, {
+        'username': this.state.username,
+        'mode': this.state.mode,
+        'answers': this.state.turingTests.map(test => { return {
+          select_id: test.answer_id,
+          options: test.cases.map(_case => _case.id)
+        }})
+      }).then(data => {
+        const score = data.data.score
+        const rank = data.data.rank
+        const rankTotal = data.data.total
+        this.setState({score, rank, rankTotal, model: 'score-board'})
+      })
     }
 
     onSlideChange(reset) {
