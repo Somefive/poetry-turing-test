@@ -1,25 +1,25 @@
 {
   "files": {
-    "main.css": "/poetry-turing-test/static/css/main.8a99e390.chunk.css",
-    "main.js": "/poetry-turing-test/static/js/main.c84a01ec.chunk.js",
-    "main.js.map": "/poetry-turing-test/static/js/main.c84a01ec.chunk.js.map",
-    "runtime-main.js": "/poetry-turing-test/static/js/runtime-main.d6f17ccd.js",
-    "runtime-main.js.map": "/poetry-turing-test/static/js/runtime-main.d6f17ccd.js.map",
-    "static/css/2.2c3cee13.chunk.css": "/poetry-turing-test/static/css/2.2c3cee13.chunk.css",
-    "static/js/2.78f16585.chunk.js": "/poetry-turing-test/static/js/2.78f16585.chunk.js",
-    "static/js/2.78f16585.chunk.js.map": "/poetry-turing-test/static/js/2.78f16585.chunk.js.map",
-    "static/js/3.36219d25.chunk.js": "/poetry-turing-test/static/js/3.36219d25.chunk.js",
-    "static/js/3.36219d25.chunk.js.map": "/poetry-turing-test/static/js/3.36219d25.chunk.js.map",
+    "main.css": "/poetry-turing-test/static/css/main.5bb3a294.chunk.css",
+    "main.js": "/poetry-turing-test/static/js/main.af04fa38.chunk.js",
+    "main.js.map": "/poetry-turing-test/static/js/main.af04fa38.chunk.js.map",
+    "runtime-main.js": "/poetry-turing-test/static/js/runtime-main.e50b523f.js",
+    "runtime-main.js.map": "/poetry-turing-test/static/js/runtime-main.e50b523f.js.map",
+    "static/css/2.07faeb4e.chunk.css": "/poetry-turing-test/static/css/2.07faeb4e.chunk.css",
+    "static/js/2.61e022b9.chunk.js": "/poetry-turing-test/static/js/2.61e022b9.chunk.js",
+    "static/js/2.61e022b9.chunk.js.map": "/poetry-turing-test/static/js/2.61e022b9.chunk.js.map",
+    "static/js/3.51a6b33b.chunk.js": "/poetry-turing-test/static/js/3.51a6b33b.chunk.js",
+    "static/js/3.51a6b33b.chunk.js.map": "/poetry-turing-test/static/js/3.51a6b33b.chunk.js.map",
     "index.html": "/poetry-turing-test/index.html",
-    "static/css/2.2c3cee13.chunk.css.map": "/poetry-turing-test/static/css/2.2c3cee13.chunk.css.map",
-    "static/css/main.8a99e390.chunk.css.map": "/poetry-turing-test/static/css/main.8a99e390.chunk.css.map",
-    "static/js/2.78f16585.chunk.js.LICENSE.txt": "/poetry-turing-test/static/js/2.78f16585.chunk.js.LICENSE.txt"
+    "static/css/2.07faeb4e.chunk.css.map": "/poetry-turing-test/static/css/2.07faeb4e.chunk.css.map",
+    "static/css/main.5bb3a294.chunk.css.map": "/poetry-turing-test/static/css/main.5bb3a294.chunk.css.map",
+    "static/js/2.61e022b9.chunk.js.LICENSE.txt": "/poetry-turing-test/static/js/2.61e022b9.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
-    "static/js/runtime-main.d6f17ccd.js",
-    "static/css/2.2c3cee13.chunk.css",
-    "static/js/2.78f16585.chunk.js",
-    "static/css/main.8a99e390.chunk.css",
-    "static/js/main.c84a01ec.chunk.js"
+    "static/js/runtime-main.e50b523f.js",
+    "static/css/2.07faeb4e.chunk.css",
+    "static/js/2.61e022b9.chunk.js",
+    "static/css/main.5bb3a294.chunk.css",
+    "static/js/main.af04fa38.chunk.js"
   ]
 }
