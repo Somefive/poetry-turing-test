@@ -8,9 +8,18 @@ import random
 from threading import Lock
 import numpy as np
 import math
+import os
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 CORS(app)
+
+def get_size(mode):
+  if mode == 'easy':
+    return 5
+  elif mode == 'hard':
+    return 10
+  else:
+    return 20
 
 poetry_tests = []
 human_ids = set()
@@ -31,7 +40,7 @@ def load_poetry_tests():
     last_time = _t
   return poetry_tests
 
-score_board = json.load(open('score_board.json'))
+score_board = json.load(open('score_board.json')) if os.path.isfile('score_board.json') else {}
 for key in ['easy', 'hard', 'lunatic']:
   if key not in score_board:
     score_board[key] = {}
@@ -42,7 +51,7 @@ for key in ['easy', 'hard', 'lunatic']:
   while len(score_board[key]) < 50:
     tester_name = 'Tester-%d' % tester_id
     if tester_name not in score_board[key]:
-      score_board[key][tester_name] = max(min(math.floor(np.random.normal(loc=loc, scale=scale)), size), 0)
+      score_board[key][tester_name] = max(min(round(np.random.normal(loc=loc, scale=scale)), size), 0)
     tester_id += 1
 json.dump(score_board, open('score_board.json', 'w'), ensure_ascii=False)
 
@@ -56,14 +65,6 @@ def get_score_board(username, score, mode):
   total = len(score_board[mode])
   rank = list(sorted(score_board[mode].values(), reverse=True)).index(score)
   return rank, total
-
-def get_size(mode):
-  if mode == 'easy':
-    return 5
-  elif mode == 'hard':
-    return 10
-  else:
-    return 20
 
 @app.route('/get-turing-tests/<mode>')
 def get_turing_tests(mode):
