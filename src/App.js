@@ -8,16 +8,17 @@ import poetries from './poetries.json'
 import axios from 'axios'
 
 // import Swiper core and required components
-import SwiperCore, { Pagination, Scrollbar, A11y } from 'swiper'
+import SwiperCore, { Pagination, Scrollbar, A11y, Navigation } from 'swiper'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
 // Import Swiper styles
 import 'swiper/swiper.scss';
 import 'swiper/components/pagination/pagination.scss'
+import 'swiper/components/navigation/navigation.scss'
 import 'swiper/components/scrollbar/scrollbar.scss'
 
 // install Swiper components
-SwiperCore.use([Pagination, Scrollbar, A11y]);
+SwiperCore.use([Pagination, Scrollbar, A11y, Navigation]);
 
 const API_HREF = 'http://120.92.50.21:19544'
 
@@ -72,8 +73,8 @@ export default class App extends Component {
           </div>
           <div className="description">
             {this.state.mode === 'easy' && '在作诗图灵测试的Easy模式中，您将会被展现5组诗歌（包括标题、作者及内容），每组包括1首由诗人创作的诗歌和1首AI创作的诗歌，请选择您认为由人创作的诗歌。所有组选择完成后，您将会得知有多少组结果正确。'}
-            {this.state.mode === 'hard' && '在作诗图灵测试的Hard模式中，您将会被展现10组诗歌（包括标题及内容），每组包括1首由诗人创作的诗歌和2首AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答限时1分钟。所有组选择完成后，您将会得知有多少组结果正确。结果将被计入Hard模式排行榜。'}
-            {this.state.mode === 'lunatic' && '在作诗图灵测试的Lunatic模式中，您将会被展现20组诗歌（仅包括诗歌内容），每组包括3首诗歌，其中至多包含1首由人创作的诗歌，请选择您认为由人创作的诗歌（若没有，则不选择），每组回答限时30秒。所有组选择完成后，您将会得知有多少组结果正确。结果将被计入Lunatic模式排行榜。'}
+            {this.state.mode === 'hard' && '在作诗图灵测试的Hard模式中，您将会被展现10组诗歌（包括标题及内容），每组包括1首由诗人创作的诗歌和2首AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答限时1分钟。所有组选择完成后，您将会得知有多少组结果正确。'}
+            {this.state.mode === 'lunatic' && '在作诗图灵测试的Lunatic模式中，您将会被展现20组诗歌（仅包括诗歌内容），每组包括3首诗歌，其中至多包含1首由人创作的诗歌，请选择您认为由人创作的诗歌（若没有，则不选择），每组回答限时30秒。所有组选择完成后，您将会得知有多少组结果正确。'}
           </div>
         </div>
       )
@@ -89,7 +90,7 @@ export default class App extends Component {
           }})
           this.setState({model: 'poetry-turing-test', turingTests, loading: false})
         }).catch(err => {
-          message.error(err)
+          message.error(`${err}`)
           this.setState({loading: false})
         })
       }
@@ -164,7 +165,7 @@ export default class App extends Component {
         if (this.state.guiding === 'submitting') newState.guiding = 'finish'
         this.setState(newState)
       }).catch(err => {
-        message.error(err)
+        message.error(`${err}`)
         this.setState({loading: false})
       })
     }
@@ -203,7 +204,7 @@ export default class App extends Component {
           <Swiper
             spaceBetween={50}
             slidesPerView={1}
-            // navigation
+            navigation={window.screen.width >= 720}
             pagination={{ clickable: true }}
             scrollbar={{ draggable: true }}
             onSlideChange={() => this.onSlideChange(true)}
