@@ -66,6 +66,25 @@ def get_score_board(username, score, mode):
   rank = list(sorted(score_board[mode].values(), reverse=True)).index(score)
   return rank, total
 
+poetry_hit = json.load(open('poetry_hit.json')) if os.path.isfile('poetry_hit.json') else {}
+poetry_view = json.load(open('poetry_view.json')) if os.path.isfile('poetry_view.json') else {}
+poetry_hit_lock = Lock()
+def record_poetry_hit(answers):
+  with poetry_hit_lock:
+    for ans in answers:
+      for _id in ans['options']:
+        if _id not in poetry_view:
+          poetry_view[_id] = 1
+        else:
+          poetry_view[_id] += 1
+      if ans['answer_id'] not in poetry_hit:
+        poetry_hit = 1
+      else:
+        poetry_hit += 1
+    json.dump(poetry_hit, open('poetry_hit.json', 'w'), ensure_ascii=False)
+    json.dump(poetry_view, open('poetry_view.json', 'w'), ensure_ascii=False)
+
+
 @app.route('/get-turing-tests/<mode>')
 def get_turing_tests(mode):
   global poetry_tests
@@ -131,6 +150,7 @@ def get_score():
     elif len(answer) > 0 and answer[0] == row['select_id']:
       score += 1
   rank, total = get_score_board(username, score, mode)
+  record_poetry_hit(request.json['answers'])
   return {
     'score': score,
     'rank': rank,
