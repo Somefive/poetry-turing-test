@@ -107,10 +107,13 @@ def get_turing_tests(mode):
       for key in keys[:rest_size]:
         cases.append(random.choice(ai_first_sents[key]))
       random.shuffle(cases)
-      tests.append({
-        'title': poetry['title'], 'author': poetry['author'], 'dynasty': poetry['dynasty'],
-        'cases': cases
-      })
+      obj = {'cases': cases}
+      if mode != 'lunatic':
+        obj['title'] = poetry['title']
+      if mode == 'easy':
+        obj['author'] = poetry['author']
+        obj['dynasty'] = poetry['dynasty']
+      tests.append(obj)
   return {
     'tests': tests
   }

@@ -147,7 +147,7 @@ export default class App extends Component {
     }
 
     submit() {
-      if (this.state.guiding !== '' && this.state.guiding !== 'submitting') return
+      if (this.state.mode === 'easy' && this.state.guiding !== '' && this.state.guiding !== 'submitting') return
       this.setState({loading: true})
       axios.post(`${API_HREF}/get-score`, {
         'username': this.state.username,
