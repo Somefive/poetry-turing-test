@@ -12,7 +12,9 @@
   text-align: center;
   padding: 0 2em;
   top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  max-width: 720px;
+  transform: translate(-50%, -50%);
 }
 
 .login {
@@ -41,8 +43,17 @@
 }
 
 .poetry-container {
+  position: relative;
   height: 100vh;
   width: 100%;
+  margin: 0;
+}
+
+@media only screen and (min-width: 720px) {
+  .poetry-container {
+    width: calc(100% - 6em);
+    margin: 0 3em;
+  }
 }
 
 .poetry-inner {
