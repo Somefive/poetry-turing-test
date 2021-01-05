@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/poetry-turing-test/static/css/main.8a99e390.chunk.css",
-    "main.js": "/poetry-turing-test/static/js/main.c35889fa.chunk.js",
-    "main.js.map": "/poetry-turing-test/static/js/main.c35889fa.chunk.js.map",
+    "main.js": "/poetry-turing-test/static/js/main.c84a01ec.chunk.js",
+    "main.js.map": "/poetry-turing-test/static/js/main.c84a01ec.chunk.js.map",
     "runtime-main.js": "/poetry-turing-test/static/js/runtime-main.d6f17ccd.js",
     "runtime-main.js.map": "/poetry-turing-test/static/js/runtime-main.d6f17ccd.js.map",
     "static/css/2.2c3cee13.chunk.css": "/poetry-turing-test/static/css/2.2c3cee13.chunk.css",
@@ -20,6 +20,6 @@
     "static/css/2.2c3cee13.chunk.css",
     "static/js/2.78f16585.chunk.js",
     "static/css/main.8a99e390.chunk.css",
-    "static/js/main.c35889fa.chunk.js"
+    "static/js/main.c84a01ec.chunk.js"
   ]
 }
