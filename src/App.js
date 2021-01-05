@@ -182,7 +182,7 @@ export default class App extends Component {
         this.timer = setTimeout(() => {
           if (this.state.countDown === 1) {
             if (this.swiper) {
-              if (this.swiper.realIndex === this.swiper.slides.length - 1) {
+              if (this.swiper.slides && this.swiper.realIndex === this.swiper.slides.length - 1) {
                 this.submit()
               } else {
                 this.swiper.slideNext()
