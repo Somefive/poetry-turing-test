@@ -5,13 +5,19 @@ from datetime import datetime
 import time
 import logging
 import random
-from threading import Lock
+from threading import Lock, Thread
 import numpy as np
 import math
 import os
 app = Flask(__name__, static_folder='poetry-turing-test')
 app.config['JSON_AS_ASCII'] = False
 CORS(app)
+
+SCORE_BOARD_FILE='data/score_board.json'
+POETRY_HIT_FILE='data/poetry_hit.json'
+POETRY_VIEW_FILE='data/poetry_view.json'
+
+logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO, datefmt="%Y-%m-%dT%H:%M:%S")
 
 def get_size(mode):
   if mode == 'easy':
@@ -22,25 +28,15 @@ def get_size(mode):
     return 20
 
 poetry_tests = []
+for line in open('poetry-turing-tests.jsonl'):
+  poetry_tests.append(json.loads(line.strip()))
 human_ids = set()
-last_time = 0
-def load_poetry_tests():
-  global poetry_tests, last_time, human_ids, loader_lock
-  _t = time.time()
-  if _t - last_time > 6000000:
-    _pt = []
-    for line in open('poetry-turing-tests.jsonl'):
-      _pt.append(json.loads(line.strip()))
-    _human_ids = set()
-    for obj in _pt:
-      for line in obj['lines']:
-        _human_ids.add(line['id'])
-    poetry_tests, human_ids = _pt, _human_ids
-    logging.info('reload poetries, %d loaded' % len(poetry_tests))
-    last_time = _t
-  return poetry_tests
+for obj in poetry_tests:
+  for line in obj['lines']:
+    human_ids.add(line['id'])
+logging.info('[preprocess] load %d poetry tests and %d human ids' % (len(poetry_tests), len(human_ids)))
 
-score_board = json.load(open('score_board.json')) if os.path.isfile('score_board.json') else {}
+score_board = json.load(open(SCORE_BOARD_FILE)) if os.path.isfile(SCORE_BOARD_FILE) else {}
 for key in ['easy', 'hard', 'lunatic']:
   if key not in score_board:
     score_board[key] = {}
@@ -53,42 +49,32 @@ for key in ['easy', 'hard', 'lunatic']:
     if tester_name not in score_board[key]:
       score_board[key][tester_name] = max(min(round(np.random.normal(loc=loc, scale=scale)), size), 0)
     tester_id += 1
-json.dump(score_board, open('score_board.json', 'w'), ensure_ascii=False)
+json.dump(score_board, open(SCORE_BOARD_FILE, 'w'), ensure_ascii=False)
 
-score_board_lock = Lock()
 def get_score_board(username, score, mode):
-  with score_board_lock:
-    if mode not in score_board:
-      score_board[mode] = {}
-    score_board[mode][username] = score
-    json.dump(score_board, open('score_board.json', 'w'), ensure_ascii=False)
+  score_board[mode][username] = score
   total = len(score_board[mode])
   rank = list(sorted(score_board[mode].values(), reverse=True)).index(score)
   return rank, total
 
-poetry_hit = json.load(open('poetry_hit.json')) if os.path.isfile('poetry_hit.json') else {}
-poetry_view = json.load(open('poetry_view.json')) if os.path.isfile('poetry_view.json') else {}
-poetry_hit_lock = Lock()
+poetry_hit = json.load(open(POETRY_HIT_FILE)) if os.path.isfile(POETRY_HIT_FILE) else {}
+poetry_view = json.load(open(POETRY_VIEW_FILE)) if os.path.isfile(POETRY_VIEW_FILE) else {}
 def record_poetry_hit(answers):
-  with poetry_hit_lock:
-    for ans in answers:
-      for _id in ans['options']:
-        if _id not in poetry_view:
-          poetry_view[_id] = 1
-        else:
-          poetry_view[_id] += 1
-      if ans['select_id'] not in poetry_hit:
-        poetry_hit[ans['select_id']] = 1
+  for ans in answers:
+    for _id in ans['options']:
+      if _id not in poetry_view:
+        poetry_view[_id] = 1
       else:
-        poetry_hit[ans['select_id']] += 1
-    json.dump(poetry_hit, open('poetry_hit.json', 'w'), ensure_ascii=False)
-    json.dump(poetry_view, open('poetry_view.json', 'w'), ensure_ascii=False)
-
+        poetry_view[_id] += 1
+    if ans['select_id'] not in poetry_hit:
+      poetry_hit[ans['select_id']] = 1
+    else:
+      poetry_hit[ans['select_id']] += 1
 
 @app.route('/get-turing-tests/<mode>')
 def get_turing_tests(mode):
+  logging.info("[get_turing_tests] mode: %s" % mode)
   global poetry_tests
-  _tests = load_poetry_tests()
   poetry_ids = set()
   size = get_size(mode)
   tests = []
@@ -151,8 +137,21 @@ def get_score():
       score += 1
   rank, total = get_score_board(username, score, mode)
   record_poetry_hit(request.json['answers'])
+  logging.info("[get_score] username: %s mode: %s score: %d" % (username, mode, score))
   return {
     'score': score,
     'rank': rank,
     'total': total
   }
+
+def run_dump():
+  global poetry_hit, poetry_view, score_board
+  while True:
+    time.sleep(60)
+    json.dump(poetry_hit, open(POETRY_HIT_FILE, 'w'), ensure_ascii=False)
+    json.dump(poetry_view, open(POETRY_VIEW_FILE, 'w'), ensure_ascii=False)
+    json.dump(score_board, open(SCORE_BOARD_FILE, 'w'), ensure_ascii=False)
+    logging.info('[run_dump] update finished')
+
+
+Thread(target=run_dump).start()
