@@ -1,24 +1,23 @@
 import './App.css';
 import 'antd/dist/antd.css'
 import { Input, message, Button } from 'antd'
-import { UserOutlined, ArrowRightOutlined, RobotOutlined } from '@ant-design/icons'
+import { UserOutlined, ArrowRightOutlined, RobotOutlined, LoadingOutlined } from '@ant-design/icons'
 import { Component } from 'react'
 import _ from 'lodash'
 import poetries from './poetries.json'
 import axios from 'axios'
 
 // import Swiper core and required components
-import SwiperCore, { Navigation, Pagination, Scrollbar, A11y, Autoplay } from 'swiper'
+import SwiperCore, { Pagination, Scrollbar, A11y } from 'swiper'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
 // Import Swiper styles
 import 'swiper/swiper.scss';
-import 'swiper/components/navigation/navigation.scss'
 import 'swiper/components/pagination/pagination.scss'
 import 'swiper/components/scrollbar/scrollbar.scss'
 
 // install Swiper components
-SwiperCore.use([Navigation, Pagination, Scrollbar, A11y, Autoplay]);
+SwiperCore.use([Pagination, Scrollbar, A11y]);
 
 const API_HREF = 'http://120.92.50.21:19544'
 
@@ -34,7 +33,8 @@ export default class App extends Component {
           countDown: 0,
           rank: 0,
           rankTotal: 0,
-          guiding: 'firsttime'
+          guiding: 'firsttime',
+          loading: false
       }
       this.poetries = _.shuffle(poetries)
       this.timer = undefined
@@ -82,13 +82,15 @@ export default class App extends Component {
     login() {
       if (this.state.username.length === 0) message.warning('输入的名称不能为空')
       else {
+        this.setState({loading: true})
         axios.get(`${API_HREF}/get-turing-tests/${this.state.mode}`).then(data => {
           const turingTests = data.data.tests.map((test, index) => { return {
             ...test, answer_id: '', index
           }})
-          this.setState({model: 'poetry-turing-test', turingTests})
+          this.setState({model: 'poetry-turing-test', turingTests, loading: false})
         }).catch(err => {
           message.error(err)
+          this.setState({loading: false})
         })
       }
     }
@@ -146,6 +148,7 @@ export default class App extends Component {
 
     submit() {
       if (this.state.guiding !== '' && this.state.guiding !== 'submitting') return
+      this.setState({loading: true})
       axios.post(`${API_HREF}/get-score`, {
         'username': this.state.username,
         'mode': this.state.mode,
@@ -157,9 +160,12 @@ export default class App extends Component {
         const score = data.data.score
         const rank = data.data.rank
         const rankTotal = data.data.total
-        let newState = {score, rank, rankTotal, model: 'score-board'}
+        let newState = {score, rank, rankTotal, model: 'score-board', loading: false}
         if (this.state.guiding === 'submitting') newState.guiding = 'finish'
         this.setState(newState)
+      }).catch(err => {
+        message.error(err)
+        this.setState({loading: false})
       })
     }
 
@@ -192,8 +198,6 @@ export default class App extends Component {
     }
 
     renderPoetryTuringTest() {
-      if ((this.state.guiding === 'swiping' || this.state.guiding === '') && this.swiper) this.swiper.allowSlideNext = true
-
       return (
         <div className="turing-test">
           <Swiper
@@ -208,12 +212,11 @@ export default class App extends Component {
               this.onSlideChange(true)
             }}
             allowSlidePrev={this.state.mode === 'easy'}
-            allowSlideNext={this.state.mode !== 'easy' || this.state.guiding === '' || this.state.guiding === 'swiping'}
           >
             {this.state.turingTests.map(poetryTest => this.renderPoetryTest(poetryTest))}
           </Swiper>
           <div className="submit-btn">
-            <Button type="primary" shape="circle" icon={<RobotOutlined />} onClick={() => this.submit()}/>
+            <Button type="primary" size="large" shape="circle" icon={<RobotOutlined />} onClick={() => this.submit()}/>
           </div>
         </div>
       )
@@ -260,7 +263,7 @@ export default class App extends Component {
 
     render() {
       return (
-        <div className="App" style={{background: `url(${process.env.PUBLIC_URL}/background.png)`, backgroundSize: 'cover'}}>
+        <div className="App" style={{background: `url(${process.env.PUBLIC_URL}/background.jpg)`, backgroundSize: 'cover'}}>
           <div className="App-inner">
             {this.state.model === 'login' && this.renderLogin()}
             {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
@@ -268,6 +271,9 @@ export default class App extends Component {
             {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
           </div>
           {(this.state.model === 'poetry-turing-test' || this.state.model === 'score-board') && this.state.guiding !== '' && this.renderGuide()}
+          {this.state.loading && <div className="loading-mask">
+            <div className="mask-inner"><LoadingOutlined /></div>
+          </div>}
         </div>
       )
     }
