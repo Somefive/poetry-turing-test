@@ -52,13 +52,17 @@ for filename in os.listdir('../../poems_save2/poems_save2'):
         key = obj['title'] + ' ' + obj['author'].split(' ')[1]
         if key in format_poetries:
             _lines = []
+            is_end = True
             for idx, text in enumerate(re.findall(r'[\u4e00-\u9fa5]{5,7}', obj['context'])):
                 if idx % 2 == 0:
                     _lines.append(text + '，')
+                    is_end = False
                 else:
                     _lines[-1] += text + '。'
-            format_poetries[key]['ai-lines'].append(_lines)
-            selected_keys.add(key)
+                    is_end = True
+            if is_end:
+                format_poetries[key]['ai-lines'].append(_lines)
+                selected_keys.add(key)
 
 def hashc(content):
     return hashlib.sha1(hashlib.md5(content.encode()).digest()).hexdigest()[:8]
