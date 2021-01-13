@@ -20,7 +20,7 @@ import 'swiper/components/scrollbar/scrollbar.scss'
 // install Swiper components
 SwiperCore.use([Pagination, Scrollbar, A11y, Navigation]);
 
-const API_HREF = process.env.PUBLIC_URL.replace('poetry-turing-test', 'api')
+const API_HREF = (process.env.NODE_ENV === 'production') ? process.env.PUBLIC_URL.replace('poetry-turing-test', 'api') : 'https://turing-poet.aminer.cn/api/'
 
 export default class App extends Component {
     constructor(props) {
@@ -73,8 +73,8 @@ export default class App extends Component {
           </div>
           <div className="description">
             {this.state.mode === 'easy' && '在作诗图灵测试的Easy模式中，您将会被展现5组诗歌（包括标题、作者及内容），每组包括1首由诗人创作的诗歌和1首AI创作的诗歌，请选择您认为由人创作的诗歌。所有组选择完成后，您将会得知有多少组结果正确。'}
-            {this.state.mode === 'hard' && '在作诗图灵测试的Hard模式中，您将会被展现10组诗歌（包括标题及内容），每组包括1首由诗人创作的诗歌和2首AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答限时1分钟。所有组选择完成后，您将会得知有多少组结果正确。'}
-            {this.state.mode === 'lunatic' && '在作诗图灵测试的Lunatic模式中，您将会被展现20组诗歌（仅包括诗歌内容），每组包括3首诗歌，其中至多包含1首由人创作的诗歌，请选择您认为由人创作的诗歌（若没有，则不选择），每组回答限时30秒。所有组选择完成后，您将会得知有多少组结果正确。'}
+            {this.state.mode === 'hard' && '在作诗图灵测试的Hard模式中，您将会被展现10组诗歌（包括标题及内容），每组包括1首由诗人创作的诗歌和2首AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答限时60(绝句)/90(律诗)秒。所有组选择完成后，您将会得知有多少组结果正确。'}
+            {this.state.mode === 'lunatic' && '在作诗图灵测试的Lunatic模式中，您将会被展现20组诗歌（仅包括诗歌内容），每组包括3首诗歌，其中至多包含1首由人创作的诗歌，请选择您认为由人创作的诗歌（若没有，则不选择），每组回答限时30(绝句)/45(律诗)秒。所有组选择完成后，您将会得知有多少组结果正确。'}
           </div>
         </div>
       )
@@ -177,7 +177,9 @@ export default class App extends Component {
       }
       if (this.state.mode !== 'easy') {
         if (reset) {
-          this.setState({countDown: this.state.mode === 'hard' ? 60 : 30})
+          let countDown = this.state.mode === 'hard' ? 60 : 30
+          if (this.state.turingTests[this.swiper.realIndex].cases.length > 0 && this.state.turingTests[this.swiper.realIndex].cases[0].content && this.state.turingTests[this.swiper.realIndex].cases[0].content.length > 2) countDown *= 1.5
+          this.setState({countDown: Math.round(countDown)})
         }
         this.timer = setTimeout(() => {
           if (this.state.countDown === 1) {
