@@ -20,7 +20,7 @@ import 'swiper/components/scrollbar/scrollbar.scss'
 // install Swiper components
 SwiperCore.use([Pagination, Scrollbar, A11y, Navigation]);
 
-const API_HREF = 'http://120.92.50.21:19544'
+const API_HREF = process.env.PUBLIC_URL.replace('poetry-turing-test', 'api')
 
 export default class App extends Component {
     constructor(props) {

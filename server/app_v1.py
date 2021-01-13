@@ -9,6 +9,7 @@ from threading import Lock, Thread
 import numpy as np
 import math
 import os
+from collections import Counter
 app = Flask(__name__, static_folder='poetry-turing-test')
 app.config['JSON_AS_ASCII'] = False
 CORS(app)
@@ -28,7 +29,7 @@ def get_size(mode):
     return 20
 
 poetry_tests = []
-for line in open('poetry-turing-tests.jsonl'):
+for line in open('data/poetry-turing-tests.jsonl'):
   poetry_tests.append(json.loads(line.strip()))
 human_ids = set()
 for obj in poetry_tests:
@@ -118,6 +119,7 @@ def get_turing_tests(mode):
       if mode == 'easy':
         obj['author'] = poetry['author']
         obj['dynasty'] = poetry['dynasty']
+      poetry_ids.add(poetry['id'])
       tests.append(obj)
   return {
     'tests': tests
@@ -143,6 +145,21 @@ def get_score():
     'rank': rank,
     'total': total
   }
+
+@app.route('/get-stats', methods=['GET'])
+def get_stat():
+  stats = {}
+  users = set()
+  usercount = {}
+  for key in score_board:
+    stats[key] = {
+      'users': len(score_board[key]),
+      'scores': list(sorted(Counter(score_board[key].values()).items(), key=lambda x: x[0]))
+    }
+    users.update(score_board[key].keys())
+  stats['users'] = len(users)
+  return stats
+
 
 def run_dump():
   global poetry_hit, poetry_view, score_board

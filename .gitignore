@@ -21,3 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+.vscode/
+server/data/*
+!server/data/poetry-utf8.txt
+server/poetry-turing-test
+server/__pycache__/
