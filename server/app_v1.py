@@ -160,6 +160,21 @@ def get_stat():
   stats['users'] = len(users)
   return stats
 
+@app.route('/get-ranks/<mode>/<content_type>', methods=['GET'])
+def get_ranks(mode, content_type):
+  ranks = list(sorted(score_board.get(mode, {}).items(), key=lambda x: -x[1]))
+  if content_type == 'table':
+    divs = []
+    for idx, (name, score) in enumerate(ranks):
+      if idx > 0 and score != ranks[idx-1][1]:
+        divs.append('<hr/>')
+      divs.append('<div>%s: %s</div>' % (name, score))
+    return '<html>%s</html>' % ''.join(divs)
+  else:
+    return {
+      'mode': mode,
+      'rank': ranks
+    }
 
 def run_dump():
   global poetry_hit, poetry_view, score_board

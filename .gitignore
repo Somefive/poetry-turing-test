@@ -27,3 +27,5 @@ server/data/*
 !server/data/poetry-utf8.txt
 server/poetry-turing-test
 server/__pycache__/
+**.pyc
+**.log

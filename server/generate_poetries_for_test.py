@@ -54,39 +54,36 @@ def init_poetry_mapping(poetries):
         is_valid = re.match(r'^(((\w{5})，(\w{5})。){2}){1,2}$', lines) is not None or re.match(r'^(((\w{7})，(\w{7})。){2}){1,2}$', lines) is not None
         if not is_valid:
             continue
-        key = '%s %s' % (title, author)
+        _lines = [line + '。' for line in lines.split('。') if len(line) > 0]
+        key = '%s %s %d-%d' % (title, author, len(_lines), len(_lines[0]) // 2 - 1)
         if key not in format_poetries:
             format_poetries[key] = {'title': title, 'author': author, 'dynasty': '唐', 'lines': [], 'ai-lines': []}
-        _lines = [line + '。' for line in lines.split('。') if len(line) > 0]
         format_poetries[key]['lines'].append(_lines)
     return format_poetries
 
 
 def match_ai_outputs_with_poetries(poetry_mapping, source_dir='data/ai'):
     selected_keys = set()
-    print('loading ai poetries from %s' % source_dir)
     cnt = 0
     total = 0
     for filename in os.listdir(source_dir):
         total += 1
         for line in open(os.path.join(source_dir, filename)):
             obj = json.loads(line.strip())
-            key = obj['title'] + ' ' + obj['author'].split(' ')[1]
-            # print(key, key in poetry_mapping)
-            if key in poetry_mapping:
-                _lines = []
-                is_end = True
-                for idx, text in enumerate(re.findall(r'[\u4e00-\u9fa5]{5,7}', obj['context'])):
-                    if idx % 2 == 0:
-                        _lines.append(text + '，')
-                        is_end = False
-                    else:
-                        _lines[-1] += text + '。'
-                        is_end = True
-                if is_end:
-                    poetry_mapping[key]['ai-lines'].append(_lines)
-                    selected_keys.add(key)
-                    cnt += 1
+            _lines = []
+            is_end = True
+            for idx, text in enumerate(re.findall(r'[\u4e00-\u9fa5]{5,7}', obj['context'])):
+                if idx % 2 == 0:
+                    _lines.append(text + '，')
+                    is_end = False
+                else:
+                    _lines[-1] += text + '。'
+                    is_end = True
+            key = obj['title'] + ' ' + obj['author'].split(' ')[1] + ' %d-%d' % (len(_lines), len(_lines[0]) // 2 - 1)
+            if key in poetry_mapping and is_end:
+                poetry_mapping[key]['ai-lines'].append(_lines)
+                selected_keys.add(key)
+                cnt += 1
     print('%d ai poetries loaded for %d poetries' % (cnt, total))
     return selected_keys
 
@@ -102,9 +99,11 @@ def generate_poetries_for_test(poetry_mapping, selected_keys=set(), output_path=
     with open('%s.tmp' % output_path, 'w') as f:
         for key in selected_keys:
             poetry = poetry_mapping[key]
-            poetry['id'] = hashc(('%s %s' % (poetry['title'], poetry['author'])))
-            poetry['lines'] = [{'content': line, 'id': hashc(''.join(line))} for line in poetry['lines']]
-            poetry['ai-lines'] = [{'content': line, 'id': hashc(''.join(line))} for line in poetry['ai-lines']]
+            poetry['id'] = hashc(key)
+            poetry['scheme'] = [len(poetry['lines'][0]), len(poetry['lines'][0][1]) // 2 - 1]
+            poetry['human'] = [{'content': line, 'id': hashc(''.join(line))} for line in poetry['lines']]
+            poetry['ai'] = [{'content': line, 'id': hashc(''.join(line))} for line in poetry['ai-lines']]
+            del poetry['lines'], poetry['ai-lines']
             f.write('%s\n' % json.dumps(poetry, ensure_ascii=False))
 
     shutil.move('%s.tmp' % output_path, output_path)
@@ -115,4 +114,4 @@ if __name__ == '__main__':
     poetries = load_source_poetry()
     poetry_mapping = init_poetry_mapping(poetries)
     selected_keys = match_ai_outputs_with_poetries(poetry_mapping, 'data/ai')
-    generate_poetries_for_test(poetry_mapping, selected_keys, 'data/poetry-turing-tests.jsonl')
+    generate_poetries_for_test(poetry_mapping, selected_keys, 'data/poetry-turing-tests.v2.jsonl')

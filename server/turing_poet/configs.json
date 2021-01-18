@@ -1,0 +1,32 @@
+{
+    "easy": {
+        "mode": "easy",
+        "exclude_fields": [],
+        "num_options": 2,
+        "num_testcases": 5,
+        "base_timelimit": null,
+        "timelimit_boost": 1.5,
+        "allow_backward": true,
+        "ground_truth_prob": 1.0
+    },
+    "hard": {
+        "mode": "hard",
+        "exclude_fields": ["author", "dynasty"],
+        "num_options": 3,
+        "num_testcases": 10,
+        "base_timelimit": 60,
+        "timelimit_boost": 1.5,
+        "allow_backward": false,
+        "ground_truth_prob": 1.0
+    },
+    "lunatic": {
+        "mode": "lunatic",
+        "exclude_fields": ["author", "dynasty", "title"],
+        "num_options": 3,
+        "num_testcases": 10,
+        "base_timelimit": 30,
+        "timelimit_boost": 1.5,
+        "allow_backward": false,
+        "ground_truth_prob": 0.75
+    }
+}
