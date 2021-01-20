@@ -1,10 +1,9 @@
 import './App.css';
 import 'antd/dist/antd.css'
-import { Input, message, Button } from 'antd'
-import { UserOutlined, ArrowRightOutlined, RobotOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Input, message, Button, Table } from 'antd'
+import { UserOutlined, ArrowRightOutlined, RobotOutlined, LoadingOutlined, MailOutlined } from '@ant-design/icons'
 import { Component } from 'react'
 import _ from 'lodash'
-import poetries from './poetries.json'
 import axios from 'axios'
 
 // import Swiper core and required components
@@ -20,26 +19,31 @@ import 'swiper/components/scrollbar/scrollbar.scss'
 // install Swiper components
 SwiperCore.use([Pagination, Scrollbar, A11y, Navigation]);
 
-const API_HREF = (process.env.NODE_ENV === 'production') ? process.env.PUBLIC_URL.replace('poetry-turing-test', 'api') : 'https://turing-poet.aminer.cn/api/'
+const API_HREF = (process.env.NODE_ENV === 'production') ? process.env.PUBLIC_URL.replace('poetry-turing-test', 'api') : 'http://localhost:19544' //'http://localhost:19545' //'https://turing-poet.aminer.cn/api/'
 
 export default class App extends Component {
     constructor(props) {
       super(props)
       this.state = {
           model: 'login',
-          username: '',
-          score: 0,
+          username: localStorage.getItem('v2.username') || '',
           turingTests: [],
           mode: 'easy',
           countDown: 0,
-          rank: 0,
-          rankTotal: 0,
           guiding: 'firsttime',
-          loading: false
+          loading: false,
+          config: {},
+          session_id: '',
+          session_key: '',
+          results: {},
+          email: localStorage.getItem('v2.email') || '',
+          rankBoard: {}
       }
-      this.poetries = _.shuffle(poetries)
+      this.timecosts = []
+      this.microTimer = undefined
       this.timer = undefined
       this.swiper = undefined
+      this.rankBoardContainer = undefined
     }
 
     renderLogin() {
@@ -49,7 +53,8 @@ export default class App extends Component {
           background: mode === this.state.mode ? color : 'white',
           borderColor: color,
           borderRadius: 0,
-          margin: '0.25em 0.75em'
+          margin: '0.25em 0.75em',
+          width: '6em'
         }}>{_.capitalize(mode)}</Button>
       }
       return (
@@ -67,14 +72,18 @@ export default class App extends Component {
             onPressEnter={() => this.login()}
           />
           <div className="mode-choice">
-              {renderModeButton('easy', '#7cb305')}
-              {renderModeButton('hard', '#cf1322')}
-              {renderModeButton('lunatic', '#531dab')}
+            {renderModeButton('easy', '#7cb305')}
+            {renderModeButton('hard', '#cf1322')}
+            {renderModeButton('lunatic', '#531dab')}
+          </div>
+          <div className="mode-choice">
+            {renderModeButton('extra', '#780650')}
           </div>
           <div className="description">
             {this.state.mode === 'easy' && '在作诗图灵测试的Easy模式中，您将会被展现5组诗歌（包括标题、作者及内容），每组包括1首由诗人创作的诗歌和1首AI创作的诗歌，请选择您认为由人创作的诗歌。所有组选择完成后，您将会得知有多少组结果正确。'}
             {this.state.mode === 'hard' && '在作诗图灵测试的Hard模式中，您将会被展现10组诗歌（包括标题及内容），每组包括1首由诗人创作的诗歌和2首AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答限时60(绝句)/90(律诗)秒。所有组选择完成后，您将会得知有多少组结果正确。'}
             {this.state.mode === 'lunatic' && '在作诗图灵测试的Lunatic模式中，您将会被展现20组诗歌（仅包括诗歌内容），每组包括3首诗歌，其中至多包含1首由人创作的诗歌，请选择您认为由人创作的诗歌（若没有，则不选择），每组回答限时30(绝句)/45(律诗)秒。所有组选择完成后，您将会得知有多少组结果正确。'}
+            {this.state.mode === 'extra' && '在作诗图灵测试的Extra模式中，您将会被展现20组诗歌（包括标题、作者及内容），每组包括3首诗歌，其中包含1首由人创作的诗歌和2首由不同AI创作的诗歌，请选择您认为由人创作的诗歌，每组回答不限时。所有组选择完成后，您将会得知有多少组结果正确。'}
           </div>
         </div>
       )
@@ -83,12 +92,24 @@ export default class App extends Component {
     login() {
       if (this.state.username.length === 0) message.warning('输入的名称不能为空')
       else {
+        localStorage.setItem('v2.username', this.state.username)
         this.setState({loading: true})
-        axios.get(`${API_HREF}/get-turing-tests/${this.state.mode}`).then(data => {
+        axios.post(`${API_HREF}/get-turing-tests`, {mode: this.state.mode, username: this.state.username}).then(data => {
           const turingTests = data.data.tests.map((test, index) => { return {
-            ...test, answer_id: '', index
+            ...test, answer_id: '', index, time: 0
           }})
-          this.setState({model: 'poetry-turing-test', turingTests, loading: false})
+          this.setState({
+            model: 'poetry-turing-test',
+            turingTests,
+            loading: false,
+            session_id: data.data.session_id,
+            session_key: data.data.session_key,
+            config: data.data.config
+          })
+          this.timecosts = turingTests.map(_ => 0)
+          this.microTimer = setInterval(() => {
+            if (this.swiper) this.timecosts[this.swiper.realIndex] += 100
+          }, 100)
         }).catch(err => {
           message.error(`${err}`)
           this.setState({loading: false})
@@ -96,30 +117,145 @@ export default class App extends Component {
       }
     }
 
-    renderScoreBoard() {
+    checkRank() {
+      const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+      if (!re.test(this.state.email.toLowerCase())) {
+        message.error(`请输入正确的邮箱格式`)
+        return
+      } else {
+        localStorage.setItem('v2.email', this.state.email)
+        this.setState({loading: true})
+        axios.post(`${API_HREF}/get-user-rank`, {
+          'username': this.state.username,
+          'mode': this.state.mode,
+          'session_id': this.state.session_id,
+          'session_key': this.state.session_key,
+          'email': this.state.email
+        }).then(data => {
+          this.setState({rankBoard: data.data, loading: false, model: 'rank-board'})
+        }).catch(err => {
+          message.error(`${err}`)
+          this.setState({loading: false})
+        })
+      }
+    }
+
+    renderRankBoard() {
+      const renderCol = (text, record) => {
+        let background = 'white'
+        let color = record.rank === 3 ? 'white' : 'black'
+        if (record.rank === 1) background = 'gold'
+        else if (record.rank === 2) background = 'silver'
+        else if (record.rank === 3) background = '#cd7f32'
+        return {
+          props: {
+            style: {
+              color, background,
+              fontWeight: record.rank === userrank ? 'bold' : 'normal'
+            }
+          },
+          children: <div>{text}</div>
+        };
+      }
+      const userrank = this.state.rankBoard.userrank
+      const columns = [
+        {
+          title: '排名',
+          dataIndex: 'rank',
+          key: 'rank',
+          width: 80,
+          align: 'center',
+          render: renderCol
+        },
+        {
+          title: '用户',
+          dataIndex: 'username',
+          key: 'username',
+          width: 160,
+          align: 'center',
+          ellipsis: true,
+          render: renderCol
+        },
+        {
+          title: '分数',
+          dataIndex: 'score',
+          key: 'score',
+          width: 80,
+          align: 'center',
+          render: renderCol
+        },
+        {
+          title: '用时(秒)',
+          dataIndex: 'timecost',
+          key: 'timecost',
+          width: 120,
+          align: 'center',
+          render: renderCol
+        },
+        {
+          title: '日期',
+          dataIndex: 'date',
+          key: 'date',
+          width: 120,
+          align: 'center',
+          render: renderCol
+        }
+      ]
+      const dataSource = this.state.rankBoard.ranks.map(row => { return {
+        key: row[0], rank: row[0], username: row[1], score: row[2], timecost: row[3] < 10000 ? row[3].toFixed(1) : 'NA', date: row[4] < '2022' ? row[4].replace('T', ' ').slice(5, row[4].length - 3) : 'NA'
+      }})
+      const width = columns.reduce((p, x) => p + x.width, 0)
       return (
-        <div className="score-board">
-          <div className="header">
-            <div>{this.state.username}</div>
-            <div>您的得分是：<span className="user-score">{this.state.score}</span> / {this.state.turingTests.length}</div>
-            <div>超越了<span className="user-rank">{(100 - this.state.rank * 100 / this.state.rankTotal).toFixed(2)}%</span>的人</div>
-          </div>
-          <div className="retry-btn"><Button size="large" onClick={() => this.setState({model: 'login'})}>再来一次</Button></div>
+        <div className="rank-board" ref={e => { this.rankBoardContainer = e }}>
+          <div className="top-info">排行榜</div>
+          <div className="header-info">您当前在<span className="mode-text">{this.state.mode}</span>模式的排名是{userrank}。</div>
+          <Table dataSource={dataSource} columns={columns} scroll={{x: width}}/>
+          <div className="retry-btn"><Button size="large" onClick={() => this.setState({model: 'login'})}>返回</Button></div>
         </div>
       )
     }
 
-    renderPoetry(poetry, parent) {
-      const heightpercent = Math.floor(100 / parent.cases.length)
-      const title = parent.title
-      const author = parent.author
-      const dynasty = parent.dynasty
-      const content = poetry.content
+    renderScoreBoard() {
+      const results = this.state.results
       return (
-        <div className={`poetry-card ${poetry.id === parent.answer_id ? 'selected': ''}`} onClick={() => {
+        <div className="score-board">
+          <div className="header">
+            <div>{this.state.username}</div>
+            <div>您的得分是：<span className="user-score">{results.score}</span> / {this.state.config.num_testcases}</div>
+            <div>耗时{results.timecost.toFixed(1)}秒</div>
+            <div>您的最好成绩是：<span className="user-score">{results.best_record[0]}</span></div>
+            {results.best_record[1] < 10000 && <div>耗时{results.best_record[1].toFixed(1)}秒</div>}
+            <div>排名：<span className="user-score">{results.rank}</span> / {results.total} </div>
+            <div>超越了<span className="user-rank">{(100 - results.rank * 100 / results.total).toFixed(2)}%</span>的人</div>
+          </div>
+          <div className="retry-btn"><Button size="large" onClick={() => this.setState({model: 'login'})}>再来一次</Button></div>
+          <Input
+            className="email-input"
+            size="large"
+            placeholder="输入邮箱查看排行榜"
+            prefix={<MailOutlined className="site-form-item-icon" />}
+            suffix={
+              <ArrowRightOutlined className="enter-btn" style={{color: this.state.email.length === 0 ? 'lightgray' : 'black'}} onClick={() => this.checkRank()}/>
+            }
+            value={this.state.email}
+            onChange={e => this.setState({email: e.target.value})}
+            onPressEnter={() => this.checkRank()}
+          />
+        </div>
+      )
+    }
+
+    renderPoetry(choice, test) {
+      const heightpercent = Math.floor(100 / this.state.config.num_options)
+      const title = test.title
+      const author = test.author
+      const dynasty = test.dynasty
+      const content = choice.content
+      return (
+        <div className={`poetry-card ${choice.id === test.answer_id ? 'selected': ''}`} onClick={() => {
           const tests = this.state.turingTests
-          if (tests[parent.index].answer_id === poetry.id) tests[parent.index].answer_id = ''
-          else tests[parent.index].answer_id = poetry.id
+          if (tests[test.index].answer_id === choice.id) tests[test.index].answer_id = ''
+          else tests[test.index].answer_id = choice.id
           let newState = {turingTests: tests}
           if (this.state.guiding === 'choosing') newState.guiding = 'goto-next'
           this.setState(newState)
@@ -140,7 +276,7 @@ export default class App extends Component {
         <SwiperSlide key={poetryTest.index}>
           <div className="poetry-container">
             <div className="poetry-inner">
-              {poetryTest && poetryTest.cases && poetryTest.cases.map(_case => this.renderPoetry(_case, poetryTest))}
+              {poetryTest && poetryTest.choices.map(choice => this.renderPoetry(choice, poetryTest))}
             </div>
           </div>
         </SwiperSlide>
@@ -148,20 +284,21 @@ export default class App extends Component {
     }
 
     submit() {
+      clearInterval(this.microTimer)
       if (this.state.mode === 'easy' && this.state.guiding !== '' && this.state.guiding !== 'submitting') return
       this.setState({loading: true})
       axios.post(`${API_HREF}/get-score`, {
         'username': this.state.username,
         'mode': this.state.mode,
-        'answers': this.state.turingTests.map(test => { return {
+        'session_id': this.state.session_id,
+        'session_key': this.state.session_key,
+        'answers': this.state.turingTests.map((test, idx) => { return {
           select_id: test.answer_id,
-          options: test.cases.map(_case => _case.id)
+          options: test.choices.map(_case => _case.id),
+          time: this.timecosts[idx] / 1000
         }})
       }).then(data => {
-        const score = data.data.score
-        const rank = data.data.rank
-        const rankTotal = data.data.total
-        let newState = {score, rank, rankTotal, model: 'score-board', loading: false}
+        let newState = {results: data.data, model: 'score-board', loading: false}
         if (this.state.guiding === 'submitting') newState.guiding = 'finish'
         this.setState(newState)
       }).catch(err => {
@@ -171,14 +308,15 @@ export default class App extends Component {
     }
 
     onSlideChange(reset) {
+      if (this.state.model !== 'poetry-turing-test') return
       if (this.timer) {
         clearTimeout(this.timer)
         this.timer = undefined
       }
-      if (this.state.mode !== 'easy') {
+      if (this.state.config.base_timelimit) {
         if (reset) {
-          let countDown = this.state.mode === 'hard' ? 60 : 30
-          if (this.state.turingTests[this.swiper.realIndex].cases.length > 0 && this.state.turingTests[this.swiper.realIndex].cases[0].content && this.state.turingTests[this.swiper.realIndex].cases[0].content.length > 2) countDown *= 1.5
+          let countDown = this.state.config.base_timelimit
+          if (this.state.turingTests[this.swiper.realIndex].scheme[0] > 2 && this.state.config.timelimit_boost) countDown *= this.state.config.timelimit_boost
           this.setState({countDown: Math.round(countDown)})
         }
         this.timer = setTimeout(() => {
@@ -214,7 +352,7 @@ export default class App extends Component {
               this.swiper = swiper
               this.onSlideChange(true)
             }}
-            allowSlidePrev={this.state.mode === 'easy'}
+            allowSlidePrev={this.state.config.allow_backward}
           >
             {this.state.turingTests.map(poetryTest => this.renderPoetryTest(poetryTest))}
           </Swiper>
@@ -271,12 +409,13 @@ export default class App extends Component {
             {this.state.model === 'login' && this.renderLogin()}
             {this.state.model === 'poetry-turing-test' && this.renderPoetryTuringTest()}
             {this.state.model === 'score-board' && this.renderScoreBoard()}
-            {this.state.model === 'poetry-turing-test' && this.state.mode !== 'easy' && this.renderTimer()}
+            {this.state.model === 'poetry-turing-test' && this.state.config.base_timelimit && this.renderTimer()}
           </div>
           {(this.state.model === 'poetry-turing-test' || this.state.model === 'score-board') && this.state.guiding !== '' && this.renderGuide()}
           {this.state.loading && <div className="loading-mask">
             <div className="mask-inner"><LoadingOutlined /></div>
           </div>}
+          {this.state.model === 'rank-board' && this.renderRankBoard()}
         </div>
       )
     }
