@@ -4,7 +4,7 @@ poetry_hit = json.load(open('data/poetry_hit.json'))
 poetry_view = json.load(open('data/poetry_view.json'))
 
 poetry_mapping = {}
-for line in open('poetry-turing-tests.jsonl'):
+for line in open('data/poetry-turing-tests.jsonl'):
     poetry = json.loads(line.strip())
     key = poetry['title'] + ' ' + poetry['author']
     for lines in poetry['lines']:
@@ -14,7 +14,7 @@ for line in open('poetry-turing-tests.jsonl'):
 
 ctr = {}
 for k, v in poetry_hit.items():
-    if k in poetry_view and k in poetry_mapping:
+    if k in poetry_view and k in poetry_mapping and poetry_view[k] > 5:
         ctr[k] = v / poetry_view[k]
 
 for k in poetry_view:

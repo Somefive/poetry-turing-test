@@ -21,6 +21,7 @@ class TuringTestConfig(object):
         self.timelimit_boost: float = obj.get('timelimit_boost', 1.5)
         self.allow_backward: bool = obj.get('allow_backward', False)
         self.ground_truth_prob: float = obj.get('ground_truth_prob', 1.0)
+        self.include_jiuge: bool = obj.get('include_jiuge', False)
 
     def as_json(self):
         return {
@@ -31,19 +32,22 @@ class TuringTestConfig(object):
             'base_timelimit': self.base_timelimit,
             'timelimit_boost': self.timelimit_boost,
             'allow_backward': self.allow_backward,
-            'ground_truth_prob': self.ground_truth_prob
+            'ground_truth_prob': self.ground_truth_prob,
+            'include_jiuge': self.include_jiuge
         }
 
 
 class Backend(object):
 
-    def __init__(self, turing_test_configs_filename: str, score_board_filename: str, dump_interval: int = 60):
+    def __init__(self, turing_test_configs_filename: str, score_board_filename: str, process_name_func, dump_interval: int = 60):
         self.configs = {config_key: TuringTestConfig(obj) for config_key, obj in json.load(open(turing_test_configs_filename)).items()}
         self.score_board_filename = score_board_filename
         self.score_board: Dict[str, Dict[str, Tuple[int, int, str]]] = {}
+        self.process_name_func = process_name_func
         for mode, data in json.load(open(score_board_filename)).items():
             self.score_board[mode] = {}
-            for k, v in data.items():
+            for username, v in data.items():
+                k = self.process_name_func(username)
                 if isinstance(v, int):
                     self.score_board[mode][k] = [v, 1000000, '2121-01-01T00:00:00']
                 else:
@@ -63,9 +67,9 @@ class Backend(object):
     def validate_session(self, session_id: str, session_key: str):
         return hashc(session_id + "::THUKEG2020") == session_key
 
-    def submit_score(self, username: str, score: int, mode: str, timecost: int, submit_date: str) -> Tuple[Tuple[int, int, str], Tuple[int, int]]:
+    def submit_score(self, username: str, score: int, mode: str, timecost: float, submit_date: str) -> Tuple[Tuple[int, int, str], Tuple[int, int]]:
         if mode not in self.score_board:
-            self.score_board = {}
+            self.score_board[mode] = {}
         if username not in self.score_board[mode]:
             self.score_board[mode][username] = [score, timecost, submit_date]
         else:
@@ -80,16 +84,16 @@ class Backend(object):
                 better += 1
             else:
                 worse += 1
-        return (best_score, best_timecost, best_date), (better + 1, (better + worse))
+        return (best_score, best_timecost, best_date), (worse, (better + worse))
 
     def run_dump(self, interval: int = 60):
         logging.info('[Backend] launched running dump')
         while True:
-            time.sleep(interval)
             json.dump(self.score_board, open(self.score_board_filename + '.tmp', 'w'), ensure_ascii=False)
-            shutil.copy(self.score_board_filename, self.score_board_filename + '.%s' % datetime.now().strftime('%y%m%d%H'))
+            shutil.copy(self.score_board_filename, self.score_board_filename.replace('v2', 'v2/archived') + '.%s' % datetime.now().strftime('%y%m%d%H'))
             shutil.move(self.score_board_filename + '.tmp', self.score_board_filename)
             logging.info('[Backend] score board dumped')
+            time.sleep(interval)
 
     def get_ranks(self, mode: str):
         ranks = []
@@ -98,3 +102,19 @@ class Backend(object):
                 ranks.append({'score': tup[0], 'users': []})
             ranks[-1]['users'].append([username, tup[1] if tup[1] < 1000000 else None, tup[2] if tup[2] != '2121-01-01T00:00:00' else 'NA'])
         return ranks
+
+    def get_user_rank(self, mode: str, username: str):
+        stats = []
+        ranks = list([(idx+1, pair[0], pair[1][0], pair[1][1], pair[1][2]) for idx, pair in enumerate(sorted(self.score_board[mode].items(), key=lambda pair: (-pair[1][0], pair[1][1], pair[1][2])))])
+        userrank = len(ranks) - 1
+        for rank, _username, _, _, _ in ranks:
+            if _username == username:
+                userrank = rank
+                break
+        if userrank < 10:
+            stats = ranks[:10]
+        elif userrank < len(ranks) - 2:
+            stats = ranks[:5] + ranks[userrank-2:userrank+3]
+        else:
+            stats = ranks[:5] + ranks[-5:]
+        return stats, userrank

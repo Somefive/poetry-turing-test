@@ -29,3 +29,7 @@ server/poetry-turing-test
 server/__pycache__/
 **.pyc
 **.log
+
+server/logs/
+server/test/
+server/*-old

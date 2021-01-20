@@ -7,6 +7,7 @@ from enum import Enum
 class PoetryLinesType(Enum):
     HUMAN = 0
     AI = 1
+    JIUGE = 2
 
 
 class PoetryLines(object):
@@ -71,8 +72,13 @@ class PoetryTest(PoetryBase):
         self.ai: List[PoetryLines] = [
             PoetryLines(obj.get('id', ''), obj.get('content', []))
         for obj in obj.get('ai', [])]
+        self.jiuge: List[PoetryLines] = [
+            PoetryLines(obj.get('id', ''), obj.get('content', []))
+        for obj in obj.get('jiuge', [])]
 
-    def generate_testcase(self, num_options: int, ground_truth_prob: float = 1.0) -> Optional[PoetryTestCase]:
+    def generate_testcase(self, num_options: int, ground_truth_prob: float = 1.0, include_jiuge: bool = False) -> Optional[PoetryTestCase]:
+        if include_jiuge and len(self.jiuge) > 0:
+            num_options -= 1
         if len(self.human) == 0 or len(self.ai) + 1 < num_options:
             return None
         ground_truth = random.choice(self.human)
@@ -84,7 +90,9 @@ class PoetryTest(PoetryBase):
             choices = [ground_truth]
             for i in np.random.permutation(len(self.ai))[:num_options - 1]:
                 choices.append(self.ai[i])
-            random.shuffle(choices)
+        if include_jiuge and len(self.jiuge) > 0:
+            choices.append(random.choice(self.jiuge))
+        random.shuffle(choices)
         return PoetryTestCase(self._id, self.title, self.author, self.dynasty, self.scheme, choices)
 
 
@@ -93,8 +101,8 @@ class PoetryTestCaseAnswer(object):
     def __init__(self, obj: dict):
         self.options: List[str] = obj.get('options', [])
         self.select_id: str = obj.get('select_id', '')
-        self.time: int = obj.get('time', -1)
+        self.time: float = obj.get('time', 0)
         self.correct: Optional[bool] = None
 
     def as_logstr(self):
-        return '%s|%s|%d|%s' % (','.join(self.options), self.select_id, self.time, self.correct)
+        return '%s;%s;%.2f;%s' % (','.join(self.options), self.select_id, self.time, self.correct)

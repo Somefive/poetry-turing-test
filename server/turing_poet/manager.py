@@ -12,13 +12,20 @@ class PoetryTestManager(object):
         self.poetry_lines_type_mapping: Dict[str, PoetryLinesType] = {}
         for test in self.poetry_tests:
             self.poetry_tests_mapping[test._id] = test
+            for lines in test.human:
+                self.poetry_lines_type_mapping[lines._id] = PoetryLinesType.HUMAN
+            for lines in test.ai:
+                self.poetry_lines_type_mapping[lines._id] = PoetryLinesType.AI
+            for lines in test.jiuge:
+                self.poetry_lines_type_mapping[lines._id] = PoetryLinesType.JIUGE
 
 
     def generate_testcases(self, num_testcases: int,
                                  num_options: int,
                                  ground_truth_prob: float = 1.0,
                                  candidate_ids: List[str] = [],
-                                 max_retry_ratio: float = 5.0) -> List[PoetryTestCase]:
+                                 max_retry_ratio: float = 5.0,
+                                 include_jiuge: bool = False) -> List[PoetryTestCase]:
         self.testcases: List[PoetryTestCase] = []
         self.testcase_ids: Set[str] = set()
         for _id in candidate_ids:
@@ -36,7 +43,7 @@ class PoetryTestManager(object):
             if test._id in self.testcase_ids:
                 retry_times += 1
                 continue
-            testcase = test.generate_testcase(num_options, ground_truth_prob)
+            testcase = test.generate_testcase(num_options, ground_truth_prob, include_jiuge=include_jiuge)
             if testcase is None:
                 retry_times += 1
                 continue
