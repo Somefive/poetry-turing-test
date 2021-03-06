@@ -37,25 +37,25 @@ def init_recorder(log_path: str):
 recorder = init_recorder('logs/record.log')
 
 gfw = DFAFilter()
-gfw.parse('data/v2/keywords')
+gfw.parse('data/v3/keywords')
 
 def process_username(username):
   return gfw.filter(username).replace(' ', '').replace('\n', '').replace('\t', '')
 
-poetry_tests_manager = PoetryTestManager(
-  poetry_tests_filename='data/v2/poetry-turing-tests-ext.jsonl'
-)
-
 backend = Backend(
-  turing_test_configs_filename='turing_poet/configs.json',
-  score_board_filename='data/v2/score_board.json',
+  turing_test_configs_filename='turing_poet/configs.v3.json',
+  score_board_filename='data/v3/score_board.json',
   process_name_func=process_username
 )
 
+poetry_tests_manager = PoetryTestManager(
+  poetry_tests_filename=list(set([config.poetry_tests_filename for config in backend.configs.values()]))
+)
+
 daemon = Daemon(
-    poetry_ctr_filename='data/v2/ctr.csv',
-    user_record_filename='data/v2/user-record.csv',
-    hard_samples_filename='data/v2/hard-samples.jsonl',
+    poetry_ctr_filename='data/v3/ctr.csv',
+    user_record_filename='data/v3/user-record.csv',
+    hard_samples_filename='data/v3/hard-samples.jsonl',
     previous_poetry_hit_view_filenames=('data/poetry_hit.json', 'data/poetry_view.json'),
     top_hard=50,
     log_filename='logs/record.log',
@@ -65,7 +65,7 @@ daemon = Daemon(
 @app.route('/')
 def hello():
   return {
-    'version': 'v2',
+    'version': 'v3',
     'name': 'turing-poet'
   }
 
@@ -78,7 +78,7 @@ def get_turing_tests():
   # candidate_ids = [] if mode != 'extra' else [_id for _id in daemon.hard_samples]
   # random.shuffle(candidate_ids)
   candidate_ids = []
-  tests = poetry_tests_manager.generate_testcases(config.num_testcases, config.num_options, config.ground_truth_prob, candidate_ids=candidate_ids, include_jiuge=config.include_jiuge)
+  tests = poetry_tests_manager.generate_testcases(config.num_testcases, config.num_options, config.ground_truth_prob, candidate_ids=candidate_ids, include_jiuge=config.include_jiuge, poetry_tests_filename=config.poetry_tests_filename)
   recorder.info("[get_turing_test] session_id: %s tests: %s" % (session_id, '|'.join([test.as_logstr() for test in tests])))
   return {
     'session_id': session_id,
@@ -147,4 +147,10 @@ def get_user_rank():
 def stat_file(name):
   if name not in ['ctr', 'ctr-easy', 'ctr-hard', 'ctr-lunatic', 'ctr-extra', 'ctr-general', 'user-record']:
     return '', 404
-  return send_file('data/v2/%s.csv' % name, as_attachment=True)
+  return send_file('data/v3/%s.csv' % name, as_attachment=True)
+
+@app.route('/stat/<name>', methods=['GET'])
+def stat_file_content(name):
+  if name not in ['ctr', 'ctr-easy', 'ctr-hard', 'ctr-lunatic', 'ctr-extra', 'ctr-general', 'user-record']:
+    return '', 404
+  return '<br/>'.join(open('data/v3/%s.csv' % name).readlines())

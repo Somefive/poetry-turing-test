@@ -4,6 +4,7 @@ import random
 import time
 import string
 import hashlib
+from tqdm import tqdm
 
 def request_jiuge(title, genre, yan):
     print('> getting %s, genre: %d, yan: %d' % (title, genre, yan))
@@ -50,30 +51,66 @@ def request_jiuge(title, genre, yan):
 def hashc(content):
     return hashlib.sha1(hashlib.md5(content.encode()).digest()).hexdigest()[:8]
 
-fold = open('data/v2/poetry-turing-tests-ext.jsonl')
-fsrc = open('data/v2/poetry-turing-tests.jsonl')
-fout = open('data/v2/poetry-turing-tests-ext-v2.jsonl', 'w')
-idx = 0
-skipped = 0
-for line in fold:
-    fsrc.readline()
-    obj = json.loads(line)
-    if len(obj.get('jiuge', [])) > 0:
-        idx += 1
-    else:
-        skipped += 1
-    fout.write('%s\n' % line.strip())
-fold.close()
-for line in fsrc:
-    obj = json.loads(line.strip())
-    g, yan = obj['scheme']
-    genre = 1 if g == 2 else 7
+def run_match():
+    fold = open('data/v2/poetry-turing-tests-ext.jsonl')
+    fsrc = open('data/v2/poetry-turing-tests.jsonl')
+    fout = open('data/v2/poetry-turing-tests-ext-v2.jsonl', 'w')
+    idx = 0
+    skipped = 0
+    for line in fold:
+        fsrc.readline()
+        obj = json.loads(line)
+        if len(obj.get('jiuge', [])) > 0:
+            idx += 1
+        else:
+            skipped += 1
+        fout.write('%s\n' % line.strip())
+    fold.close()
+    for line in fsrc:
+        obj = json.loads(line.strip())
+        g, yan = obj['scheme']
+        genre = 1 if g == 2 else 7
+        try:
+            idx += 1
+            lines = request_jiuge(obj['title'], genre, yan)
+            obj['jiuge'] = [{'id': hashc(''.join(lines)), 'content': lines}]
+        except Exception as e:
+            skipped += 1
+            print('  unexpected err: %s, skipped' % e)
+        print('< finished %d poetry generated, skipped %d poetry' % (idx, skipped))
+        fout.write('%s\n' % json.dumps(obj, ensure_ascii=False))
+
+
+def safe_request_jiuge(title, genre, yan):
     try:
-        idx += 1
-        lines = request_jiuge(obj['title'], genre, yan)
-        obj['jiuge'] = [{'id': hashc(''.join(lines)), 'content': lines}]
-    except Exception as e:
-        skipped += 1
-        print('  unexpected err: %s, skipped' % e)
-    print('< finished %d poetry generated, skipped %d poetry' % (idx, skipped))
-    fout.write('%s\n' % json.dumps(obj, ensure_ascii=False))
+        return request_jiuge(title, genre, yan)
+    except:
+        return None
+
+
+def run_offline_eval():
+    total = 0
+    suc = 0
+    rows = 0
+    fout = open('offline-eval/jiuge.jsonl', 'w')
+    for title in open('offline-eval/title.txt'):
+        title = title.strip()
+        if len(title) == 0:
+            continue
+        obj = {'标题': title}
+        obj['五言绝句'] = safe_request_jiuge(title, 1, 5)
+        obj['七言绝句'] = safe_request_jiuge(title, 1, 7)
+        obj['五言律诗'] = safe_request_jiuge(title, 7, 5)
+        obj['七言律诗'] = safe_request_jiuge(title, 7, 7)
+        fout.write('%s\n' % json.dumps(obj, ensure_ascii=False))
+        rows += 1
+        for key, value in obj.items():
+            if key == '标题':
+                continue
+            total += 1
+            if value:
+                suc += 1
+        print('Number: %d, Record/Requested: %d/%d' % (rows, suc, total))
+    fout.close()
+
+run_offline_eval()

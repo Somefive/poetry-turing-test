@@ -79,7 +79,8 @@ def match_ai_outputs_with_poetries(poetry_mapping, source_dir='data/ai'):
                 else:
                     _lines[-1] += text + '。'
                     is_end = True
-            key = obj['title'] + ' ' + obj['author'].split(' ')[1] + ' %d-%d' % (len(_lines), len(_lines[0]) // 2 - 1)
+            # print(obj)
+            key = obj['title'] + ' ' + obj['author'].split(' ')[-1] + ' %d-%d' % (len(_lines), len(_lines[0]) // 2 - 1)
             if key in poetry_mapping and is_end:
                 poetry_mapping[key]['ai-lines'].append(_lines)
                 selected_keys.add(key)
@@ -113,5 +114,7 @@ def generate_poetries_for_test(poetry_mapping, selected_keys=set(), output_path=
 if __name__ == '__main__':
     poetries = load_source_poetry()
     poetry_mapping = init_poetry_mapping(poetries)
-    selected_keys = match_ai_outputs_with_poetries(poetry_mapping, 'data/ai')
-    generate_poetries_for_test(poetry_mapping, selected_keys, 'data/poetry-turing-tests.v2.jsonl')
+    # selected_keys = match_ai_outputs_with_poetries(poetry_mapping, 'data/ai')
+    # generate_poetries_for_test(poetry_mapping, selected_keys, 'data/poetry-turing-tests.v2.jsonl')
+    selected_keys = match_ai_outputs_with_poetries(poetry_mapping, 'data/200306ai')
+    generate_poetries_for_test(poetry_mapping, selected_keys, 'data/poetry-turing-tests.v3.jsonl')
